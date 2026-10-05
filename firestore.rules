@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Paste into: Firebase console > Firestore Database > Rules, then Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // An admin is any signed-in user with a document in the "admins"
+    // collection whose ID is their user ID.
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Everyone can see products. Only admins can add or change them.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders are created by the server only (it does not go through these
+    // rules). Admins can read them, delete them, and change their status,
+    // which touches only the four fields named below. Nothing else in an
+    // order can be edited from a browser. Customers never read orders
+    // directly: the Order status page asks the server.
+    match /orders/{orderId} {
+      allow read: if isAdmin();
+      allow create: if false;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'statusUpdatedAt', 'createdAt', 'deliveredAt']);
+      allow delete: if isAdmin();
+    }
+
+    // A signed-in user can check whether they are an admin. The list itself
+    // is edited only in the Firebase console.
+    match /admins/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Anything not listed above (for example the order number counter) is closed.
+  }
+}

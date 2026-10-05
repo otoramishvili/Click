@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* daisyUI with the built-in themes switched off. The store has one theme, below. */
+@plugin "daisyui" {
+  themes: false;
+}
+
+/*
+  Store theme. Every daisyUI component (btn, input, badge, menu, tabs...)
+  and every colour utility (bg-primary, text-base-content...) reads from here,
+  so the login, admin and checkout pages will match without extra work.
+*/
+@plugin "daisyui/theme" {
+  name: "store";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Surfaces: white page, cool grey for quiet areas, a line colour for borders */
+  --color-base-100: #ffffff;
+  --color-base-200: #f3f5fa;
+  --color-base-300: #dfe4ee;
+  --color-base-content: #0f1b3d;
+
+  /* Ultramarine for actions */
+  --color-primary: #2340e8;
+  --color-primary-content: #ffffff;
+
+  /* Navy for dark blocks (top strip, footer, promo) */
+  --color-secondary: #0f1b3d;
+  --color-secondary-content: #ffffff;
+  --color-neutral: #0f1b3d;
+  --color-neutral-content: #dfe4f3;
+
+  /* Amber for discounts */
+  --color-accent: #ffb224;
+  --color-accent-content: #2b1d00;
+
+  --color-info: #2340e8;
+  --color-info-content: #ffffff;
+  --color-success: #0c8a4d;
+  --color-success-content: #ffffff;
+  --color-warning: #ffb224;
+  --color-warning-content: #2b1d00;
+  --color-error: #d12b3f;
+  --color-error-content: #ffffff;
+
+  --radius-selector: 0.375rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Fonts are loaded in app/layout.tsx and exposed as CSS variables. */
+@theme inline {
+  --font-sans:
+    var(--font-archivo), var(--font-georgian), ui-sans-serif, system-ui,
+    sans-serif;
+}
+
+/* Headings use the wide cut of Archivo. Add "font-wide" next to the size and weight classes. */
+@utility font-wide {
+  font-stretch: 125%;
+}
+
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The one piece of motion on the page: the example invoice fills in on load. */
+@keyframes invoice-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.invoice-step {
+  animation: invoice-in 0.5s ease-out both;
+  animation-delay: calc(var(--i, 0) * 160ms + 300ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invoice-step {
+    animation: none;
+  }
+}
