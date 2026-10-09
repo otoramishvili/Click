@@ -50,17 +50,27 @@ export function phoneLink(phone: string): string {
 }
 
 /*
-  YOUR COMPANY, as it is printed on every invoice. Fill these in once.
-  Ask your accountant which details an invoice must carry for your business.
+  YOUR COMPANY, as it is printed on every invoice (the PDF and the email).
+  These values were copied from your invoice Excel file. Check them once.
 */
 export const seller = {
-  legalName: "Your Company LLC",
-  idCode: "000000000",
-  address: "Your legal address, Tbilisi",
-  bankName: "Your bank",
-  bankCode: "BANKGE22",
-  iban: "GE00XX0000000000000000",
-  /* Printed under the bank details. Say how and when you expect to be paid. */
+  legalName: 'შპს "click.ge"',
+  idCode: "405 361 549",
+  address: "საქართველო, თბილისი",
+  /* The phone and email printed at the top of the PDF invoice */
+  phone: "+995 555 988 949",
+  email: "ano.otiashvili@gmail.com",
+  bankName: "ს/ს თიბისი ბანკი",
+  bankCode: "TBCBGE22",
+  iban: "GE30TB7638936080100007",
+  /* Prices on the site include VAT. The invoice shows how much of the total is VAT. */
+  vatPercent: 18,
+  /* The blue line under the totals of the PDF invoice */
+  invoiceNote:
+    "გადახდა ეროვნულ ვალუტაში, გადმორიცხვის დღეს დაფიქსირებული ეროვნული ბანკის კურსით.",
+  /* Printed under "მიწოდების ვადა" (delivery time) on the PDF invoice */
+  deliveryTerm: "შეკვეთიდან 3 დღე",
+  /* Printed under the bank details in the email. Say how and when you expect to be paid. */
   paymentNote:
     "Please pay by bank transfer and write the invoice number in the payment description.",
 };

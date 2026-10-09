@@ -140,7 +140,10 @@ function OrderRow({
               </>
             )}
             {customer.type === "personal" && (
-              <p className="mt-1 font-semibold">{customer.fullName}</p>
+              <>
+                <p className="mt-1 font-semibold">{customer.fullName}</p>
+                {customer.personalId && <p>Personal ID: {customer.personalId}</p>}
+              </>
             )}
             <p>
               {customer.address}, {customer.city}

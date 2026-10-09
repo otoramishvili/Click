@@ -15,6 +15,8 @@ export type Customer = {
   phone: string;
   city: string;
   address: string;
+  /* Personal order only. Optional: the buyer's personal ID number, for the invoice. */
+  personalId: string;
   /* Filled in only for a business order */
   companyName: string;
   companyId: string;
@@ -31,6 +33,7 @@ export const emptyCustomer: Customer = {
   phone: "",
   city: "",
   address: "",
+  personalId: "",
   companyName: "",
   companyId: "",
   note: "",
@@ -66,6 +69,7 @@ export function cleanCustomer(raw: unknown): Customer {
     phone: text(source.phone, 40),
     city: text(source.city, MAX_TEXT),
     address: text(source.address, MAX_TEXT),
+    personalId: type === "personal" ? text(source.personalId, 40) : "",
     companyName: type === "business" ? text(source.companyName, MAX_TEXT) : "",
     companyId: type === "business" ? text(source.companyId, 40) : "",
     note: longText(source.note, MAX_NOTE),
@@ -94,6 +98,14 @@ export function validateCustomer(customer: Customer): CustomerErrors {
   }
   if (!customer.address) {
     errors.address = "Enter the street address.";
+  }
+  /* A Georgian personal number is 11 digits. The field may be left empty. */
+  if (
+    customer.type === "personal" &&
+    customer.personalId &&
+    !/^\d{11}$/.test(customer.personalId.replace(/\s/g, ""))
+  ) {
+    errors.personalId = "A personal ID number has 11 digits. Check it, or leave the field empty.";
   }
   if (customer.type === "business") {
     if (!customer.companyName) {
@@ -145,6 +157,8 @@ export function cleanItems(raw: unknown): CartLineInput[] | null {
 export type StoredProduct = {
   sku: string;
   name: string;
+  /* The name of the product's category, for the "პროდუქტი" column of the invoice */
+  category: string;
   price: number;
   inStock: boolean;
 };
@@ -153,6 +167,8 @@ export type OrderLine = {
   productId: string;
   sku: string;
   name: string;
+  /* Category name. Orders placed before the PDF invoice was added do not have it. */
+  category?: string;
   price: number;
   quantity: number;
   sum: number;
@@ -201,6 +217,7 @@ export function priceOrder(
       productId: item.productId,
       sku: product.sku,
       name: product.name,
+      category: product.category,
       price: product.price,
       quantity: item.quantity,
       sum: fromTetri(sumTetri),

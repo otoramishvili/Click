@@ -2,6 +2,8 @@
   The emails the site sends:
     invoiceEmail     -> to the customer, after an order
     storeOrderEmail  -> to the store's own inbox, after an order
+  Both order emails also carry the invoice as a PDF file. The PDF is made in
+  lib/server/invoice-pdf.ts; this file is only the text of the email itself.
     contactEmail     -> to the store's own inbox, from the contact form
   The order emails are filled in automatically from the order. Your company details come
   from `seller` in lib/site.ts. Change the wording or layout here.
@@ -12,6 +14,7 @@
 import type { ContactMessage } from "@/lib/contact";
 import { formatPrice } from "@/lib/format";
 import type { Order } from "@/lib/orders";
+import { invoiceFileName } from "@/lib/server/invoice-pdf";
 import { seller, site } from "@/lib/site";
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -77,6 +80,7 @@ function buyerLines(order: Order): string[] {
     lines.push(`Contact: ${customer.fullName}`);
   } else {
     lines.push(customer.fullName);
+    if (customer.personalId) lines.push(`Personal ID: ${customer.personalId}`);
   }
   lines.push(`${customer.address}, ${customer.city}`);
   lines.push(customer.phone);
@@ -126,8 +130,14 @@ function itemsText(order: Order): string {
     .join("\n");
 }
 
-/* The invoice the customer receives */
-export function invoiceEmail(order: Order): RenderedEmail {
+/*
+  The invoice the customer receives.
+  hasPdf says whether the PDF invoice is attached to the email.
+*/
+export function invoiceEmail(order: Order, hasPdf: boolean): RenderedEmail {
+  const pdfNote = hasPdf
+    ? `Your invoice is attached to this email as a PDF file (${invoiceFileName(order)}).`
+    : "";
   const label = `font-size:12px;color:${MUTED};margin:0 0 6px;`;
   const block = (lines: string[]) =>
     lines
@@ -159,6 +169,7 @@ export function invoiceEmail(order: Order): RenderedEmail {
 </td>
 </tr>
 </table>
+${pdfNote ? `<p style="margin:16px 0 0;padding:10px 14px;background:${SOFT};border-radius:8px;">${escapeHtml(pdfNote)}</p>` : ""}
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid ${LINE};">
 <tr>
@@ -190,6 +201,7 @@ ${note}
 
   const text = [
     `${site.name} - Invoice № ${order.number} (${formatDate(order.placedAt)})`,
+    ...(pdfNote ? ["", pdfNote] : []),
     "",
     "SELLER",
     ...sellerLines,
@@ -220,11 +232,19 @@ ${note}
 /*
   The "new order" email the store receives.
   invoiceSent says whether the customer's invoice email went out.
+  hasPdf says whether the PDF invoice is attached to this email.
 */
-export function storeOrderEmail(order: Order, invoiceSent: boolean): RenderedEmail {
+export function storeOrderEmail(
+  order: Order,
+  invoiceSent: boolean,
+  hasPdf: boolean,
+): RenderedEmail {
   const invoiceStatus = invoiceSent
     ? `Invoice № ${order.number} was emailed to the customer.`
     : `Invoice № ${order.number} could NOT be emailed to the customer. Send it to them yourself.`;
+  const pdfStatus = hasPdf
+    ? `The invoice is attached to this email as a PDF file (${invoiceFileName(order)}).${invoiceSent ? "" : " You can forward it to the customer."}`
+    : "The PDF invoice could not be made for this order, so nothing is attached.";
   const { customer } = order;
   const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);
   const kind = customer.type === "business" ? "Company order" : "Personal order";
@@ -245,6 +265,7 @@ ${buyerLines(order)
 ${itemsTable(order)}
 ${note}
 <p style="margin:24px 0 0;font-size:13px;color:${invoiceSent ? MUTED : "#d12b3f"};${invoiceSent ? "" : "font-weight:bold;"}">${invoiceStatus}</p>
+<p style="margin:6px 0 0;font-size:13px;color:${hasPdf ? MUTED : "#d12b3f"};">${escapeHtml(pdfStatus)}</p>
 <p style="margin:6px 0 0;color:${MUTED};font-size:13px;">Reply to this email to write to the customer.</p>`;
 
   const text = [
@@ -260,6 +281,7 @@ ${note}
     ...(customer.note ? ["", `Customer's note: ${customer.note}`] : []),
     "",
     invoiceStatus,
+    pdfStatus,
   ].join("\n");
 
   return {

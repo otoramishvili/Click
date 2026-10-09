@@ -60,8 +60,10 @@ Open `src/lib/site.ts`:
 - `site`, `phones` and `locations`: store name, phone numbers, email, store
   addresses and working hours (header, footer, contact page, emails). These are
   already filled in from click.ge; check them and add the opening hours.
-- `seller`: legal name, ID code, legal address, bank, bank code, account (IBAN) and
-  the payment note. These are printed on every invoice and **you must fill them in**.
+- `seller`: legal name, ID code, address, the phone and email printed on the
+  invoice, bank, bank code, account (IBAN), VAT percent, the payment note and the
+  delivery time. These are printed on every invoice. They are already filled in
+  from your invoice Excel file; **check them once**.
 
 ### 5. Run it and make yourself the admin
 
@@ -166,12 +168,37 @@ site does not reduce the stock number. The old .xls format is not read: save as 
    and they are asked to confirm.
 3. The order gets the next number (1001, 1002, ...) and is saved in the `orders`
    collection. The number is also the invoice number.
-4. Two emails go out through Resend: the invoice to the customer, and the order to
-   `ORDER_NOTIFICATION_EMAIL`. The store's email says whether the invoice was delivered
-   to Resend. If an email fails the order is still saved, and the reason is printed in
-   the server log.
+4. The invoice is made as a PDF file (`invoice-1001.pdf`).
+5. Two emails go out through Resend, both with the PDF attached: the invoice to the
+   customer, and the order to `ORDER_NOTIFICATION_EMAIL`. The store's email says
+   whether the invoice was delivered to Resend. If an email or the PDF fails the order
+   is still saved, and the reason is printed in the server log.
 
 The emails are built in `src/lib/server/email-templates.ts`. Change wording or layout there.
+
+## The PDF invoice
+
+The PDF follows your invoice Excel file: your company and logo at the top, the buyer
+on the left, your bank details in the box on the right, the product table, the totals
+with VAT, the payment note and the delivery time. It is filled in from the order:
+
+| On the invoice | Comes from |
+|---|---|
+| Invoice number and date | the order number and the day it was placed (Georgian time) |
+| Buyer | a company: company name, ID code, contact person. A person: full name and, if they typed it at checkout, their personal ID number. Then address and phone |
+| "პროდუქტი" column | the product's category (its subcategory when it has one) |
+| Name, quantity, price, line total | the products in the order, at the prices in the database |
+| Totals | prices on the site include VAT, so: total / 1.18 = amount without VAT, the rest is VAT |
+| Your company, bank details, notes | `seller` in `src/lib/site.ts` |
+
+- To change wording, columns or sizes: `src/lib/server/invoice-pdf.ts`.
+- To change the logo: `src/lib/server/pdf/logo.ts` (the steps are written at its top).
+- If you are not a VAT payer, set `vatPercent: 0` in `seller` and the two VAT rows
+  disappear.
+- The PDF is written by the site's own code (`src/lib/server/pdf/`), with a Georgian
+  font built in. There is nothing extra to install.
+- The lari sign (₾) is written as the word "ლარი", because the built-in font does not
+  have that sign.
 
 ## Where things are
 
@@ -217,11 +244,14 @@ src/
     server/                SERVER ONLY, uses the secret keys
       firebase-admin.ts    Firebase for the server
       products.ts          reads products for /shop and /product
-      place-order.ts       saves an order and sends the emails
+      place-order.ts       saves an order, makes the PDF invoice, sends the emails
       contact.ts           sends a contact form message to the store
       order-status.ts      finds an order for the customer's Order status page
-      email.ts             sends one email through Resend
+      email.ts             sends one email through Resend, with attached files
       email-templates.ts   the invoice, the "new order" email, the contact email
+      invoice-pdf.ts       the PDF invoice: its wording and layout
+      pdf/                 what the PDF is written with: pdf-writer.ts (draws text, boxes,
+                           the logo), font-data.ts (the font), logo.ts (your logo)
   components/
     layout/                header, footer, menus, search, logo, account menu
     home/                  the home page product grid
@@ -242,6 +272,8 @@ src/
 - The admin panel can add products but not edit or delete them (use the Firebase
   console for that).
 - Customers are not emailed when an order's status changes; they have to look it up.
+- The PDF invoice is only sent by email when the order is placed. It cannot be
+  downloaded again from the admin panel.
 - Orders are not linked to customer accounts. Anyone can order without logging in.
 - Nothing limits how many orders, contact messages or status lookups one visitor can
   send. Add a rate limit or a captcha before the site is public: orders and messages

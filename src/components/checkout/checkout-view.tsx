@@ -26,6 +26,7 @@ const FIELD_ORDER: (keyof Customer)[] = [
   "companyName",
   "companyId",
   "fullName",
+  "personalId",
   "email",
   "phone",
   "city",
@@ -46,6 +47,7 @@ function TextField({
   label,
   type = "text",
   autoComplete,
+  inputMode,
   hint,
   customer,
   errors,
@@ -55,6 +57,7 @@ function TextField({
   label: string;
   type?: "text" | "email" | "tel";
   autoComplete?: string;
+  inputMode?: "numeric";
   hint?: string;
   customer: Customer;
   errors: CustomerErrors;
@@ -70,6 +73,7 @@ function TextField({
         name={field}
         type={type}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         value={customer[field]}
         onChange={(event) => onChange(field, event.target.value)}
         className={`input w-full ${error ? "input-error" : ""}`}
@@ -283,6 +287,16 @@ export function CheckoutView() {
               autoComplete="name"
               {...fieldProps}
             />
+
+            {customer.type === "personal" && (
+              <TextField
+                field="personalId"
+                label="Personal ID number (optional)"
+                inputMode="numeric"
+                hint="11 digits. Printed on your invoice."
+                {...fieldProps}
+              />
+            )}
 
             <div className="grid gap-5 sm:grid-cols-2">
               <TextField

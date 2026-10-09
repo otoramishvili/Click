@@ -8,6 +8,15 @@ export type EmailMessage = {
   text: string;
   /* Where a reply to this email goes */
   replyTo?: string;
+  /* Files sent with the email, for example the PDF invoice */
+  attachments?: EmailAttachment[];
+};
+
+export type EmailAttachment = {
+  /* The name the receiver sees, for example "invoice-1001.pdf" */
+  filename: string;
+  /* The bytes of the file */
+  content: Uint8Array;
 };
 
 export type EmailResult = { ok: true } | { ok: false; reason: string };
@@ -30,6 +39,10 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
       html: message.html,
       text: message.text,
       replyTo: message.replyTo,
+      attachments: message.attachments?.map((file) => ({
+        filename: file.filename,
+        content: Buffer.from(file.content),
+      })),
     });
 
     if (error) {

@@ -4,9 +4,12 @@
     1. Check the form and the cart
     2. Look up the real products and prices in the database
     3. Give the order the next invoice number and save it
-    4. Email the invoice to the customer and the order to the store
+    4. Make the PDF invoice
+    5. Email the invoice to the customer and the order to the store,
+       both with the PDF attached
 */
 import { FieldValue } from "firebase-admin/firestore";
+import { getCategory, getSubcategory } from "@/lib/catalog";
 import {
   cleanCustomer,
   cleanItems,
@@ -16,9 +19,10 @@ import {
   type PlaceOrderResult,
   type StoredProduct,
 } from "@/lib/orders";
-import { sendEmail, type EmailResult } from "@/lib/server/email";
+import { sendEmail, type EmailAttachment, type EmailResult } from "@/lib/server/email";
 import { invoiceEmail, storeOrderEmail } from "@/lib/server/email-templates";
 import { getAdminDb } from "@/lib/server/firebase-admin";
+import { buildInvoicePdf, invoiceFileName } from "@/lib/server/invoice-pdf";
 
 /* The first order gets this number + 1 */
 const FIRST_ORDER_NUMBER = 1000;
@@ -57,9 +61,16 @@ export async function placeOrder(raw: unknown): Promise<PlaceOrderResult> {
     for (const snapshot of snapshots) {
       const data = snapshot.data();
       if (!data) continue;
+      const categorySlug = String(data.categorySlug ?? "");
+      const subcategorySlug = String(data.subcategorySlug ?? "");
       products.set(snapshot.id, {
         sku: String(data.sku ?? ""),
         name: String(data.name ?? ""),
+        /* "Cartridges" rather than "Printers and scanners", when the product has both */
+        category:
+          getSubcategory(categorySlug, subcategorySlug)?.name ??
+          getCategory(categorySlug)?.name ??
+          "",
         price: Number(data.price ?? 0),
         inStock: data.inStock !== false,
       });
@@ -112,10 +123,21 @@ export async function placeOrder(raw: unknown): Promise<PlaceOrderResult> {
       total: priced.total,
     };
 
-    /* 4. Send the emails. The order is already saved, so from here on the
-          customer must be told it was received, whatever goes wrong: a
-          failed email does not lose the order. The invoice goes first, so
-          the store's email can say whether the customer got it. */
+    /* The order is already saved, so from here on the customer must be told
+       it was received, whatever goes wrong: a failed PDF or email does not
+       lose the order. */
+
+    /* 4. Make the PDF invoice. If that fails, the emails still go out without it. */
+    let attachments: EmailAttachment[] | undefined;
+    try {
+      attachments = [{ filename: invoiceFileName(order), content: buildInvoicePdf(order) }];
+    } catch (error) {
+      console.error(`Order ${number}: the PDF invoice could not be made:`, error);
+    }
+    const hasPdf = attachments !== undefined;
+
+    /* 5. Send the emails. The invoice goes first, so the store's email can
+          say whether the customer got it. */
     let invoiceSent = false;
     try {
       const storeInbox = process.env.ORDER_NOTIFICATION_EMAIL;
@@ -123,7 +145,8 @@ export async function placeOrder(raw: unknown): Promise<PlaceOrderResult> {
       const invoiceResult = await sendEmail({
         to: customer.email,
         replyTo: storeInbox || undefined,
-        ...invoiceEmail(order),
+        attachments,
+        ...invoiceEmail(order, hasPdf),
       });
       invoiceSent = invoiceResult.ok;
 
@@ -132,7 +155,8 @@ export async function placeOrder(raw: unknown): Promise<PlaceOrderResult> {
         storeResult = await sendEmail({
           to: storeInbox,
           replyTo: customer.email,
-          ...storeOrderEmail(order, invoiceResult.ok),
+          attachments,
+          ...storeOrderEmail(order, invoiceResult.ok, hasPdf),
         });
       } else {
         console.error(
